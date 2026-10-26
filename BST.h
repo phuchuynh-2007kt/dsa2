@@ -254,16 +254,63 @@ BST<K, V>::~BST() {
 
 template<class K, class V>
 void BST<K, V>::add(K key, V value) {
-    // TODO Q1a: insert a unique key and update count.
     // Duplicate keys must be ignored (the caller retains the unused value).
-    (void)key; (void)value;
+    Node* tmp = pRoot;
+    Stack<Node*> st;
+    
+    while(tmp != nullptr) {
+        st.push(tmp);
+
+        if(key > tmp->data.key) 
+            tmp = tmp->pRight;
+        else if(key < tmp->data.key) 
+            tmp = tmp->pLeft;
+        else 
+            return; //Duplicate is ignored
+    }
+
+    Node* newNode = new Node{Entry{key, value}};
+    ++count;
+    
+    if(st.empty()){
+        pRoot = newNode;
+    } else {
+        Node* parent = st.peek();
+
+        if(key < parent->data.key)
+            parent->pLeft = newNode;
+        else
+            parent->pRight = newNode;
+    }
+
+    while(!st.empty()) {
+        Node* parent = st.pop();
+        parent->updateHeight();
+    }
 }
 
 
 template<class K, class V>
 typename BST<K, V>::Node* BST<K, V>::add(Node* pRoot, Entry data) {
     // TODO Q1a: recursive insertion preserving the BST ordering invariant.
-    (void)data;
+    if(pRoot == nullptr) {
+        Node* newNode = new Node{data};
+        pRoot = newNode;
+        ++count;
+        return pRoot;
+    }
+    if(data.key < pRoot->data.key) {
+        pRoot->pLeft = add(pRoot->pLeft, data);
+        pRoot->updateHeight();
+    } 
+    else if(data.key > pRoot->data.key) {
+        pRoot->pRight = add(pRoot->pRight, data);
+        pRoot->updateHeight();
+    }
+    else {
+        return pRoot; //similarly when encountering a duplicate node, immediately abort 
+    }
+
     return pRoot;
 }
 
