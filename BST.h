@@ -292,7 +292,6 @@ void BST<K, V>::add(K key, V value) {
 
 template<class K, class V>
 typename BST<K, V>::Node* BST<K, V>::add(Node* pRoot, Entry data) {
-    // TODO Q1a: recursive insertion preserving the BST ordering invariant.
     if(pRoot == nullptr) {
         Node* newNode = new Node{data};
         pRoot = newNode;
@@ -306,9 +305,6 @@ typename BST<K, V>::Node* BST<K, V>::add(Node* pRoot, Entry data) {
     else if(data.key > pRoot->data.key) {
         pRoot->pRight = add(pRoot->pRight, data);
         pRoot->updateHeight();
-    }
-    else {
-        return pRoot; //similarly when encountering a duplicate node, immediately abort 
     }
 
     return pRoot;
@@ -336,11 +332,53 @@ V BST<K, V>::remove(K key, bool* success){
 template<class K, class V>
 typename BST<K, V>::Node* BST<K, V>::remove(
     Node* pRoot, K key, bool& success, V& retValue) {
-    // TODO Q1a: remove key; handle 0, 1, and 2 children.
     // A successful removal TRANSFERS the V pointer to the caller.
-    (void)key; (void)retValue;
-    success = false;
-    return pRoot;
+    if(pRoot == nullptr) {
+        success = false;
+        return nullptr;
+    }
+
+    if(key < pRoot->data.key) 
+        pRoot->pLeft = remove(pRoot->pLeft, key, success, retValue);
+    else if(key > pRoot->data.key) 
+        pRoot->pRight = remove(pRoot->pRight, key, success, retValue);
+    else {
+        if(pRoot->pLeft == nullptr) {
+            Node* newNode = pRoot->pRight;
+            retValue = pRoot->data.value;
+            pRoot->data.value = nullptr;
+            delete pRoot;
+            success = true;
+            return newNode;
+        }
+        if(pRoot->pRight == nullptr) {
+            Node* newNode = pRoot->pLeft;
+            retValue = pRoot->data.value;
+            pRoot->data.value = nullptr; //requires more attention here
+            delete pRoot;
+            success = true;
+            return newNode;
+        }
+
+        /**
+        there's no explicit instruction regarding which branch to restructure in case 
+        of 2 child so inorder method is implicitly chosen here, requires more attention
+        */
+        Node* newNode = pRoot->pRight;
+        while(newNode->pLeft != nullptr)
+            newNode = newNode->pLeft;
+        
+        retValue = pRoot->data.value;
+
+        pRoot->data.key = newNode->data.key;
+        pRoot->data.value = newNode->data.value;
+
+        bool ignoredSucess = false;
+        V ignoredValue = nullptr;
+        pRoot->pRight = remove(pRoot->pRight, newNode->data.key, ignoredSucess, ignoredValue);
+        success = true;
+    }
+    return pRoot;    
 }
 
 
@@ -352,9 +390,21 @@ V BST<K, V>::search(K key, bool& found){
 
 template<class K, class V>
 V BST<K, V>::search(Node* pRoot, K key, bool& found) {
-    // TODO Q1a: search in a BST; set found on success.
-    (void)pRoot; (void)key; (void)found;
-    return V{};
+    if(pRoot == nullptr) {
+        found = false;
+        return nullptr;
+    }
+
+    if(pRoot->data.key < key) {
+        return search(pRoot->pRight, key, found);
+    }
+    else if(pRoot->data.key > key) {
+        return search(pRoot->pLeft, key, found);
+    }
+    else {
+        found = true;
+        return pRoot->data.value;
+    }
 }
 
 
