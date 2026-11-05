@@ -24,8 +24,9 @@ template<class K, class V>
 class AVL : public BST<K,V>{
 public:
     void add(K key, V value=0){
-        // TODO Q1b: insert a new key, ignore duplicates, update count.
-        (void)key; (void)value;
+        XNode* newNode = new XNode(typename BST<K,V>::Entry{key, value});
+        this->pRoot = add(this->pRoot, newNode);
+        this->count++;
     }
 
     V remove(K key, bool* success=0){
@@ -82,22 +83,106 @@ private:
     // TODO Q1b: implement rotations, rebalancing, and recursive updates.
     // Node::updateHeight() and Node::bfactor are supplied infrastructure.
     XNode* rotateLeft(XNode* root){
-        return root; // TODO
+        XNode* p = root;
+        root = root->pRight;
+        p->pLeft = root->pRight;
+        root->pRight = p;
+
+        p->updateHeight();
+        root->updateHeight();
+
+        return root;
     }
     XNode* rotateRight(XNode* root){
-        return root; // TODO
+        XNode* p = root;
+        root = root->pLeft;
+        p->pRight = root->pLeft;
+        root->pLeft = p;
+
+        p->updateHeight();
+        root->updateHeight();
+
+        return root; 
     }
     XNode* rebalance(XNode* root){
-        return root; // TODO
+        if (root == nullptr)
+            return root;
+
+        XNode* p = root;
+        if(root->bfactor < -1) {
+            p = p->pLeft;
+            if (p->bfactor <= 0)
+                root = rotateRight(root);
+            else {
+                root->pLeft = rotateLeft(root->pLeft);
+                root = rotateRight(root);
+            }
+        } else {
+            p = p->pRight;
+            if (p->bfactor >= 0)
+                root = rotateLeft(root);
+            else {
+                root->pRight = rotateRight(root->pRight);
+                root = rotateLeft(root);
+            }
+        }
+        return root;
     }
     XNode* add(XNode* root, XNode* newNode){
-        (void)newNode;
-        return root; // TODO
+        if(root == nullptr) return newNode;
+
+        if(root->data.key < newNode->data.key) 
+            root->pLeft = add(root->pLeft, newNode);
+        else if(root->data.key > newNode->data.key)
+            root->pRight = add(root->pRight, newNode);
+        
+        root->updateHeight();
+        root = rebalance(root);
+        return root; 
     }
     XNode* remove(XNode* root, K key, bool& success, V& retValue){
-        (void)key; (void)retValue;
-        success = false;
-        return root; // TODO
+        if(root == nullptr) {
+            success = false;
+            return nullptr;
+        }
+
+        if (key < root->data.key)
+            root->pLeft  = remove(root->pLeft,  key, success, retValue);
+        else if (key > root->data.key)
+            root->pRight = remove(root->pRight, key, success, retValue);
+        else {
+            if(root->pLeft == nullptr) {
+                XNode* p = root->pRight;    
+                retValue = root->data.value;
+                root->data.value = nullptr;
+                delete root;
+                success = true;
+                return p;
+            }
+            if(root->pRight == nullptr) {
+                XNode* p = root->pLeft;
+                retValue = root->data.value;
+                root->data.value = nullptr; //requires more attention here
+                delete root;
+                success = true;
+                return p;
+            }
+
+            XNode* newNode = root->pRight;
+            while(newNode->pLeft != nullptr)
+                newNode = newNode->pLeft;
+
+            retValue = root->data.value;
+            root->data.value = newNode->data.value;
+            root->data.key = newNode->data.key;
+            
+            bool ignoredSuccess = false;
+            V ignoredValue = nullptr;
+            root->pRight = remove(newNode, newNode->data.key, ignoredSuccess, ignoredValue);
+        }
+        root->updateHeight();
+        root = rebalance(root);
+        return root;
     }
 };
 
