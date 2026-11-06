@@ -23,8 +23,13 @@
 template<class K, class V>
 class AVL : public BST<K,V>{
 public:
-    void add(K key, V value=0){
-        XNode* newNode = new XNode(typename BST<K,V>::Entry{key, value});
+void add(K key, V value=0){
+    //guard against duplicate
+    bool found = false;
+    this->search(key, found);   //an unused value here
+    if(found == true) return;
+
+    XNode* newNode = new XNode{typename BST<K, V>::Entry{key, value}};
         this->pRoot = add(this->pRoot, newNode);
         this->count++;
     }
@@ -85,8 +90,8 @@ private:
     XNode* rotateLeft(XNode* root){
         XNode* p = root;
         root = root->pRight;
-        p->pLeft = root->pRight;
-        root->pRight = p;
+        p->pRight = root->pLeft;
+        root->pLeft = p;
 
         p->updateHeight();
         root->updateHeight();
@@ -96,8 +101,8 @@ private:
     XNode* rotateRight(XNode* root){
         XNode* p = root;
         root = root->pLeft;
-        p->pRight = root->pLeft;
-        root->pLeft = p;
+        p->pLeft = root->pRight;
+        root->pRight = p;
 
         p->updateHeight();
         root->updateHeight();
@@ -105,7 +110,7 @@ private:
         return root; 
     }
     XNode* rebalance(XNode* root){
-        if (root == nullptr)
+        if (root == nullptr || (-1 <= root->bfactor && root->bfactor <= 1))
             return root;
 
         XNode* p = root;
@@ -132,9 +137,9 @@ private:
         if(root == nullptr) return newNode;
 
         if(root->data.key < newNode->data.key) 
-            root->pLeft = add(root->pLeft, newNode);
-        else if(root->data.key > newNode->data.key)
             root->pRight = add(root->pRight, newNode);
+        else if(root->data.key > newNode->data.key)
+            root->pLeft = add(root->pLeft, newNode);
         
         root->updateHeight();
         root = rebalance(root);
@@ -178,7 +183,8 @@ private:
             
             bool ignoredSuccess = false;
             V ignoredValue = nullptr;
-            root->pRight = remove(newNode, newNode->data.key, ignoredSuccess, ignoredValue);
+            root->pRight = remove(root->pRight, newNode->data.key, ignoredSuccess, ignoredValue);
+            success = true;
         }
         root->updateHeight();
         root = rebalance(root);

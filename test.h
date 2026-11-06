@@ -23,13 +23,13 @@
 template<class K, class V>
 class AVL : public BST<K,V>{
 public:
-    void add(K key, V value=0){
-        // Guard duplicate before allocating — search is O(log n)
+void add(K key, V value=0){
+        // Check duplicate before allocating; search is O(log n)
         bool found = false;
         this->search(key, found);
         if (found) return;  // duplicate: caller keeps value
 
-        XNode* newNode = new XNode(typename BST<K,V>::Entry(key, value));
+        XNode* newNode = new XNode{typename BST<K, V>::Entry{key, value}};
         this->pRoot = add(this->pRoot, newNode);
         this->count++;
     }
@@ -88,8 +88,7 @@ private:
     // TODO Q1b: implement rotations, rebalancing, and recursive updates.
     // Node::updateHeight() and Node::bfactor are supplied infrastructure.
     /*
-     * rotateLeft: right child becomes new root.
-     *
+     * rotateLeft: right child becomes new root
      *      P              R
      *     / \            / \
      *   PL   R    =>    P   RR
@@ -98,17 +97,15 @@ private:
      */
     XNode* rotateLeft(XNode* root){
         XNode* p = root;
-        XNode* r = root->pRight;
-        p->pRight = r->pLeft;   // RL moves to P's right
-        r->pLeft  = p;          // P drops to R's left
+        XNode* r = root->pRight;  // new root
+        p->pRight = r->pLeft;     // RL moves to P's right
+        r->pLeft  = p;            // P drops to R's left
         p->updateHeight();
         r->updateHeight();
         return r;
     }
-
     /*
-     * rotateRight: left child becomes new root.
-     *
+     * rotateRight: left child becomes new root
      *      P              L
      *     / \            / \
      *    L   PR   =>   LL   P
@@ -117,25 +114,23 @@ private:
      */
     XNode* rotateRight(XNode* root){
         XNode* p = root;
-        XNode* l = root->pLeft;
-        p->pLeft  = l->pRight;  // LR moves to P's left
-        l->pRight = p;          // P drops to L's right
+        XNode* l = root->pLeft;   // new root
+        p->pLeft  = l->pRight;    // LR moves to P's left
+        l->pRight = p;            // P drops to L's right
         p->updateHeight();
         l->updateHeight();
         return l;
     }
-
     /*
-     * rebalance: called after every recursive step.
-     * updateHeight() stores the ACTUAL height difference, so imbalance
-     * appears as bfactor <= -2 or >= +2 (not -1/+1).
-     * Child bfactor <= 0 covers both LL and the EH case that arises
-     * during deletion; >= 0 likewise covers RR + deletion EH.
+     * rebalance: only acts when |bfactor| >= 2.
+     * MUST early-return for balanced nodes: without it, the else branch
+     * dereferences p->pRight even when pRight is null (bfactor 0 or +1).
      */
     XNode* rebalance(XNode* root){
         if (root == nullptr) return root;
+        if (root->bfactor >= -1 && root->bfactor <= 1) return root; // balanced
 
-        if (root->bfactor <= -2) {          // left-heavy
+        if(root->bfactor <= -2) {           // left-heavy
             XNode* lc = root->pLeft;
             if (lc->bfactor <= 0)           // LL (or EH after deletion)
                 root = rotateRight(root);
@@ -143,7 +138,7 @@ private:
                 root->pLeft = rotateLeft(root->pLeft);
                 root = rotateRight(root);
             }
-        } else if (root->bfactor >= 2) {   // right-heavy
+        } else {                            // right-heavy (bfactor >= 2)
             XNode* rc = root->pRight;
             if (rc->bfactor >= 0)           // RR (or EH after deletion)
                 root = rotateLeft(root);
@@ -154,38 +149,21 @@ private:
         }
         return root;
     }
-
-    /*
-     * AVL recursive insert.
-     * Mirrors BST<K,V>::add(Node*, Entry) but:
-     *   - accepts a pre-allocated node (no allocation inside)
-     *   - calls rebalance() after updateHeight() on the way back up
-     * Duplicate detection is handled by the public add() before allocation,
-     * so this function assumes newNode->data.key is not already present.
-     */
     XNode* add(XNode* root, XNode* newNode){
-        if (root == nullptr) return newNode;
+        if(root == nullptr) return newNode;
 
-        if (newNode->data.key < root->data.key)
+        // newNode->data.key < root → go LEFT; > root → go RIGHT
+        if(newNode->data.key < root->data.key)
             root->pLeft  = add(root->pLeft,  newNode);
-        else if (newNode->data.key > root->data.key)
+        else if(newNode->data.key > root->data.key)
             root->pRight = add(root->pRight, newNode);
-        // equal: duplicate — should not reach here (public add guards it)
-
+        
         root->updateHeight();
-        return rebalance(root);
+        root = rebalance(root);
+        return root; 
     }
-
-    /*
-     * AVL recursive remove.
-     * Same ownership contract as BST: sets data.value = nullptr before
-     * deleting a node so ~Node() does NOT free the managed pointer;
-     * the pointer is returned via retValue for the caller to own.
-     * Rebalances on the way back up after each recursive step.
-     * Uses Inorder Successor (smallest of right subtree) for two-child case.
-     */
     XNode* remove(XNode* root, K key, bool& success, V& retValue){
-        if (root == nullptr) {
+        if(root == nullptr) {
             success = false;
             return nullptr;
         }
@@ -195,45 +173,41 @@ private:
         else if (key > root->data.key)
             root->pRight = remove(root->pRight, key, success, retValue);
         else {
-            // ── Case: no left child (covers leaf too) ──────────────────
-            if (root->pLeft == nullptr) {
-                XNode* right = root->pRight;
-                retValue = root->data.value;
-                root->data.value = nullptr; // prevent ~Node() from double-freeing
-                delete root;
-                success = true;
-                return right;              // right may be nullptr (leaf case)
-            }
-            // ── Case: no right child ───────────────────────────────────
-            if (root->pRight == nullptr) {
-                XNode* left = root->pLeft;
+            if(root->pLeft == nullptr) {
+                XNode* p = root->pRight;    
                 retValue = root->data.value;
                 root->data.value = nullptr;
                 delete root;
                 success = true;
-                return left;
+                return p;
             }
-            // ── Case: two children — replace with Inorder Successor ────
-            // Find min of right subtree
-            XNode* succ = root->pRight;
-            while (succ->pLeft != nullptr) succ = succ->pLeft;
+            if(root->pRight == nullptr) {
+                XNode* p = root->pLeft;
+                retValue = root->data.value;
+                root->data.value = nullptr; //requires more attention here
+                delete root;
+                success = true;
+                return p;
+            }
 
-            // Hand root's value to caller; take successor's key+value into root
-            retValue             = root->data.value;
-            root->data.key       = succ->data.key;
-            root->data.value     = succ->data.value;
+            XNode* newNode = root->pRight;
+            while(newNode->pLeft != nullptr)
+                newNode = newNode->pLeft;
 
-            // Remove successor from right subtree.
-            // The recursive call will null succ->data.value before deleting it,
-            // so root (which now holds the same pointer) is unaffected.
-            bool dummyOk  = false;
-            V    dummyVal = nullptr;
-            root->pRight = remove(root->pRight, succ->data.key, dummyOk, dummyVal);
-            success = true;
+            retValue = root->data.value;
+            root->data.value = newNode->data.value;
+            root->data.key = newNode->data.key;
+            
+            bool ignoredSuccess = false;
+            V ignoredValue = nullptr;
+            // Must search from root->pRight, not from newNode itself —
+            // passing newNode would skip all nodes between root->pRight and newNode.
+            root->pRight = remove(root->pRight, newNode->data.key, ignoredSuccess, ignoredValue);
+            success = true;  // the original node's value was transferred via retValue
         }
-
         root->updateHeight();
-        return rebalance(root);
+        root = rebalance(root);
+        return root;
     }
 };
 
