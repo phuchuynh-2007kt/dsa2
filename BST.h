@@ -152,6 +152,7 @@ public:
         static int LH, EH, RH, EMPTY;
         int bfactor; //not used in BST, be used in AVL
         int height_;
+        int subtreeSize;
         Entry data;
         Node *pLeft, *pRight;
         
@@ -162,21 +163,25 @@ public:
             this->pRight = 0;
             this->bfactor = EMPTY;
             this->height_ = 1;
+            this->subtreeSize = 1;
         }
         Node(Entry newdata, Node* pLeft=0, Node* pRight=0): data(newdata){
             this->pLeft = pLeft;
             this->pRight = pRight;
             this->bfactor = EH;
             this->height_ = 1;
+            this->subtreeSize = 1;
         }
         ~Node(){
             if(data.value != 0) delete data.value;
         }
         void updateHeight(){
             int leftH =0, rightH=0;
-            if(pLeft != 0) leftH = pLeft->height();
-            if(pRight != 0) rightH = pRight->height();
+            int leftS =0, rightS=0;
+            if(pLeft != 0) {leftH = pLeft->height(); leftS = pLeft->subtreeSize;}
+            if(pRight != 0) {rightH = pRight->height(); rightS = pRight->subtreeSize;}
             height_ = 1 + max(leftH, rightH);
+            subtreeSize = 1 + leftS + rightS;
             //
             bfactor = rightH - leftH;
         }

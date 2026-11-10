@@ -84,7 +84,7 @@ private:
 
     static void identifyStops(
         const BST<stopKey, StopInfo*>::Node* root, const std::string& prefix, 
-        int start, int end, int &curr, vector<StopInfo>& result);
+        int start, int end, int &curr, vector<StopInfo>& result, bool dropLeft = false);
 };
 
 #endif  // BKMOVE_A2_H

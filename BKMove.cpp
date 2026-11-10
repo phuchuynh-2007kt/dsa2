@@ -59,18 +59,23 @@ int BKMove::getStopCount() const {
 
 void BKMove::identifyStops(
     const BST<stopKey, StopInfo*>::Node* root, const string& prefix,
-    int start, int end, int &curr, vector<StopInfo>& result) {
+    int start, int end, int &curr, vector<StopInfo>& result, bool dropLeft) {
     if(root == nullptr || static_cast<int>(result.size()) >= (end - start))
         return;
 
     const std::string& key = root->data.key.searchKey;
-    bool containPrefix = true;
-    int pos = key.find(prefix);
-    if(pos != 0) containPrefix = false;
+    bool containPrefix = false;
+    if(key.rfind(prefix, 0) != std::string::npos) containPrefix = true;
 
-    if(key >= prefix) 
-        identifyStops(root->pLeft, prefix, start, end, curr, result);
+    if(key >= prefix) {
+        int leftS = (root->pLeft == nullptr) ? 0 : root->pLeft->subtreeSize;
 
+        if(dropLeft && containPrefix && (curr + leftS <= start))
+            curr += leftS;
+        else
+            identifyStops(root->pLeft, prefix, start, end, curr, result, dropLeft);
+            
+    }
     if(static_cast<int>(result.size()) >= (end - start))
         return;
 
@@ -86,7 +91,7 @@ void BKMove::identifyStops(
         return;
 
     if(containPrefix || key < prefix)
-        identifyStops(root->pRight, prefix, start, end, curr, result);
+        identifyStops(root->pRight, prefix, start, end, curr, result, (key >= prefix));
 }
 
 std::vector<StopInfo> BKMove::findStops(
