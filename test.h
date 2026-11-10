@@ -1,214 +1,95 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+#ifndef BKMOVE_A2_H
+#define BKMOVE_A2_H
 
-/* 
- * File:   AVL.h
- * Author: LTSACH
- *
- * Created on 12 September 2020, 17:11
- */
+#include <string>
+#include <vector>
+#include "AVL.h"
 
-#ifndef AVL_H
-#define AVL_H
-#include "BST.h"
-#include "support/DLinkedList.h"
-#include "support/Queue.h"
+struct StopInfo {
+    std::string stopId;
+    std::string displayName;
+    std::string searchKey;
 
-#define XNode typename BST<K,V>::Node
-
-
-template<class K, class V>
-class AVL : public BST<K,V>{
-public:
-void add(K key, V value=0){
-        // Check duplicate before allocating; search is O(log n)
-        bool found = false;
-        this->search(key, found);
-        if (found) return;  // duplicate: caller keeps value
-
-        XNode* newNode = new XNode{typename BST<K, V>::Entry{key, value}};
-        this->pRoot = add(this->pRoot, newNode);
-        this->count++;
-    }
-
-    V remove(K key, bool* success=0){
-        V retValue = 0; //O: NULL
-        bool success_ = false;
-        this->pRoot = remove(this->pRoot, key, success_, retValue);
-        if(success_) this->count -= 1;
-        //if(success != 0) if (success != 0) *success = success_;
-        if (success != 0) *success = success_;
-        return retValue;
-    }
-    int height(){
-        if(this->pRoot == 0) return 0;
-        return this->pRoot->height();
-    }
-    void println(string (*entry2str)(K&,V&)=0){
-        cout << "Tree height: " << this->height() << endl;
-        cout << "Tree nodes:"  << endl;
-        cout << this->toString(entry2str, true) << endl;
-    }
-    /*
-     * bfactor: designed for being used to test AVL tree
-     *          so, maybe not useful for real application
-     * It returns a list of balance factor (string) of nodes visited with BFS-traversal
-     * (see AVLTest for example)
-     */
-    DLinkedList<string> bfactor(){
-        DLinkedList<string> list;
-        if(this->pRoot == 0) return list;
-        
-        Queue<XNode*> queue;
-        queue.push(this->pRoot);
-        while(!queue.empty()){
-            XNode* pNode = queue.pop();
-            if(pNode->bfactor == nEMPTY) list.add("EMPTY");
-            else if(pNode->bfactor == nLH) list.add("LH");
-            else if(pNode->bfactor == nEH) list.add("EH");
-            else list.add("RH");
-            
-            if(pNode->bfactor == nEMPTY){
-                delete pNode; //because alloc in [1] or [2]
-                continue;
-            } 
-            if((pNode->pLeft == 0) && (pNode->pRight == 0) ) continue;
-            
-            if(pNode->pLeft != 0) queue.push(pNode->pLeft);
-            else queue.push(new XNode()); //[1]
-            if(pNode->pRight != 0) queue.push(pNode->pRight);
-            else queue.push(new XNode()); //[2]
-        }
-        return list;
-    }
-private:
-    // TODO Q1b: implement rotations, rebalancing, and recursive updates.
-    // Node::updateHeight() and Node::bfactor are supplied infrastructure.
-    /*
-     * rotateLeft: right child becomes new root
-     *      P              R
-     *     / \            / \
-     *   PL   R    =>    P   RR
-     *       / \        / \
-     *      RL  RR    PL  RL
-     */
-    XNode* rotateLeft(XNode* root){
-        XNode* p = root;
-        XNode* r = root->pRight;  // new root
-        p->pRight = r->pLeft;     // RL moves to P's right
-        r->pLeft  = p;            // P drops to R's left
-        p->updateHeight();
-        r->updateHeight();
-        return r;
-    }
-    /*
-     * rotateRight: left child becomes new root
-     *      P              L
-     *     / \            / \
-     *    L   PR   =>   LL   P
-     *   / \               / \
-     *  LL  LR            LR  PR
-     */
-    XNode* rotateRight(XNode* root){
-        XNode* p = root;
-        XNode* l = root->pLeft;   // new root
-        p->pLeft  = l->pRight;    // LR moves to P's left
-        l->pRight = p;            // P drops to L's right
-        p->updateHeight();
-        l->updateHeight();
-        return l;
-    }
-    /*
-     * rebalance: only acts when |bfactor| >= 2.
-     * MUST early-return for balanced nodes: without it, the else branch
-     * dereferences p->pRight even when pRight is null (bfactor 0 or +1).
-     */
-    XNode* rebalance(XNode* root){
-        if (root == nullptr) return root;
-        if (root->bfactor >= -1 && root->bfactor <= 1) return root; // balanced
-
-        if(root->bfactor <= -2) {           // left-heavy
-            XNode* lc = root->pLeft;
-            if (lc->bfactor <= 0)           // LL (or EH after deletion)
-                root = rotateRight(root);
-            else {                          // LR
-                root->pLeft = rotateLeft(root->pLeft);
-                root = rotateRight(root);
-            }
-        } else {                            // right-heavy (bfactor >= 2)
-            XNode* rc = root->pRight;
-            if (rc->bfactor >= 0)           // RR (or EH after deletion)
-                root = rotateLeft(root);
-            else {                          // RL
-                root->pRight = rotateRight(root->pRight);
-                root = rotateLeft(root);
-            }
-        }
-        return root;
-    }
-    XNode* add(XNode* root, XNode* newNode){
-        if(root == nullptr) return newNode;
-
-        // newNode->data.key < root → go LEFT; > root → go RIGHT
-        if(newNode->data.key < root->data.key)
-            root->pLeft  = add(root->pLeft,  newNode);
-        else if(newNode->data.key > root->data.key)
-            root->pRight = add(root->pRight, newNode);
-        
-        root->updateHeight();
-        root = rebalance(root);
-        return root; 
-    }
-    XNode* remove(XNode* root, K key, bool& success, V& retValue){
-        if(root == nullptr) {
-            success = false;
-            return nullptr;
-        }
-
-        if (key < root->data.key)
-            root->pLeft  = remove(root->pLeft,  key, success, retValue);
-        else if (key > root->data.key)
-            root->pRight = remove(root->pRight, key, success, retValue);
-        else {
-            if(root->pLeft == nullptr) {
-                XNode* p = root->pRight;    
-                retValue = root->data.value;
-                root->data.value = nullptr;
-                delete root;
-                success = true;
-                return p;
-            }
-            if(root->pRight == nullptr) {
-                XNode* p = root->pLeft;
-                retValue = root->data.value;
-                root->data.value = nullptr; //requires more attention here
-                delete root;
-                success = true;
-                return p;
-            }
-
-            XNode* newNode = root->pRight;
-            while(newNode->pLeft != nullptr)
-                newNode = newNode->pLeft;
-
-            retValue = root->data.value;
-            root->data.value = newNode->data.value;
-            root->data.key = newNode->data.key;
-            
-            bool ignoredSuccess = false;
-            V ignoredValue = nullptr;
-            // Must search from root->pRight, not from newNode itself —
-            // passing newNode would skip all nodes between root->pRight and newNode.
-            root->pRight = remove(root->pRight, newNode->data.key, ignoredSuccess, ignoredValue);
-            success = true;  // the original node's value was transferred via retValue
-        }
-        root->updateHeight();
-        root = rebalance(root);
-        return root;
+    friend std::ostream& operator<<(std::ostream& os, const StopInfo& s) {
+        os << s.stopId << ":" << s.displayName;
+        return os;
     }
 };
 
-#endif /* AVL_H */
+struct ArrivalEvent {
+    std::string eventId;
+    std::string stopId;
+    std::string routeId;
+    int arrivalTime;
+};
+
+class BKMove {
+public:
+    BKMove();
+    ~BKMove();
+
+    BKMove(const BKMove&) = delete;
+    BKMove& operator=(const BKMove&) = delete;
+
+    // Q3: Bus Stop Finder
+    bool addStop(const StopInfo& stop);
+    bool removeStop(const std::string& stopId);
+    bool findStop(const std::string& stopId, StopInfo& out) const;
+    int getStopCount() const;
+    std::vector<StopInfo> findStops(
+        const std::string& prefix, int page, int pageSize) const;
+
+    // Q4: Live Arrival Board
+    bool scheduleArrival(const ArrivalEvent& event);
+    bool peekNextArrival(const std::string& stopId,
+                         ArrivalEvent& out) const;
+    bool processNextArrival(const std::string& stopId,
+                            ArrivalEvent& out);
+    bool rescheduleArrival(const std::string& eventId,
+                           int newArrivalTime);
+    bool cancelArrival(const std::string& eventId);
+private:
+    // Q3/Q4: Students propose their own private data members and helpers.
+    // BKMove must manage registered stops and pending arrival events.
+    // You may add classes/structs, extend BST/AVL/Heap, or use inheritance.
+    // Keep the public API and the provided data-record fields unchanged.
+    // All implementations must stay within the five permitted source files.
+    struct stopKey
+    {
+        string searchKey;
+        string stopId;
+        bool operator<(const stopKey& other) const 
+        {
+            if(searchKey != other.searchKey) return searchKey < other.searchKey;
+            return stopId < other.stopId;
+        }
+        bool operator>(const stopKey& other) const 
+        {
+            if (searchKey != other.searchKey) return searchKey > other.searchKey;
+            return stopId > other.stopId;
+        }
+        bool operator==(const stopKey& other) const
+        {
+            return searchKey == other.searchKey && stopId == other.stopId;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const stopKey& k) {
+            os << "(" << k.searchKey << ", " << k.stopId << ")";
+            return os;
+        }
+    };
+
+    AVL<std::string, StopInfo*> bkmoveStop;
+    AVL<stopKey, StopInfo*> findingStop;
+    int stopCount;
+
+    static void collectStops(
+        const BST<stopKey, StopInfo*>::Node* node,
+        const std::string& prefix,
+        int startIdx,
+        int endIdx,
+        int& currentMatch,
+        std::vector<StopInfo>& result);
+};
+
+#endif  // BKMOVE_A2_H

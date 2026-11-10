@@ -7,33 +7,102 @@
 // Do not change the public API or the supplied StopInfo/ArrivalEvent fields.
 // Do not use global storage shared by unrelated BKMove objects.
 
-BKMove::BKMove() = default;
+BKMove::BKMove() : stopCount(0) {};
 BKMove::~BKMove() = default;
 
 // Q3 -- Bus Stop Finder
 bool BKMove::addStop(const StopInfo& stop) {
-    (void)stop;
-    return false; // TODO Q3
+    if(stop.stopId.empty() || stop.displayName.empty() || stop.searchKey.empty())
+        return false;
+    
+    bool found = false;
+    bkmoveStop.search(stop.stopId, found);
+    
+    if(found) return false;
+
+    bkmoveStop.add(stop.stopId, new StopInfo(stop));
+    findingStop.add(stopKey{stop.searchKey, stop.stopId}, new StopInfo(stop));
+    ++stopCount;
+    return true;
 }
 
 bool BKMove::removeStop(const std::string& stopId) {
-    (void)stopId;
-    return false; // TODO Q3
+    bool found = false;
+    StopInfo* stopInf = bkmoveStop.search(stopId, found); //pending for arrival time
+
+    if(!found || stopInf == nullptr) return false;
+
+    std::string sKey = stopInf->searchKey;
+    StopInfo* removePtr = bkmoveStop.remove(stopId);
+    if(removePtr != nullptr) delete removePtr;
+
+    StopInfo* p = findingStop.remove(stopKey{sKey, stopId});
+    if(p != nullptr) delete p;
+
+    --stopCount;
+    return true;
 }
 
 bool BKMove::findStop(const std::string& stopId, StopInfo& out) const {
-    (void)stopId; (void)out;
-    return false; // TODO Q3; do not modify out on failure
+    bool found = false;
+    StopInfo* retStop = bkmoveStop.search(stopId, found);
+    if(found && retStop != nullptr) {
+        out = *retStop;
+        return true;
+    }
+    return false;
 }
 
 int BKMove::getStopCount() const {
-    return 0; // TODO Q3
+    return stopCount;
+}
+
+void BKMove::identifyStops(
+    const BST<stopKey, StopInfo*>::Node* root, const string& prefix,
+    int start, int end, int &curr, vector<StopInfo>& result) {
+    if(root == nullptr || static_cast<int>(result.size()) >= (end - start))
+        return;
+
+    const std::string& key = root->data.key.searchKey;
+    bool containPrefix = true;
+    int pos = key.find(prefix);
+    if(pos != 0) containPrefix = false;
+
+    if(key >= prefix) 
+        identifyStops(root->pLeft, prefix, start, end, curr, result);
+
+    if(static_cast<int>(result.size()) >= (end - start))
+        return;
+
+    if(containPrefix) {
+        if(curr >= start && curr < end) {
+            if(root->data.value != nullptr)
+                result.push_back(*(root->data.value));
+        }
+        ++curr;
+    }
+
+    if(static_cast<int>(result.size()) >= (end - start))
+        return;
+
+    if(containPrefix || key < prefix)
+        identifyStops(root->pRight, prefix, start, end, curr, result);
 }
 
 std::vector<StopInfo> BKMove::findStops(
     const std::string& prefix, int page, int pageSize) const {
-    (void)prefix; (void)page; (void)pageSize;
-    return {}; // TODO Q3
+    if(page < 0 || pageSize <= 0 || stopCount == 0) return {};
+
+    long long startLL = 1LL * page * pageSize;
+    if(startLL >= stopCount) return {};
+
+    std::vector<StopInfo> result;
+    int start = static_cast<int>(startLL);
+    int end = start + pageSize;
+    int curr = 0;
+
+    identifyStops(findingStop.getRoot(), prefix, start, end, curr, result);
+    return result;
 }
 
 // Q4 -- Live Arrival Board

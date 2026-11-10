@@ -47,6 +47,9 @@ void add(K key, V value=0){
         if(this->pRoot == 0) return 0;
         return this->pRoot->height();
     }
+    const XNode* getRoot() const {
+        return this->pRoot;
+    }
     void println(string (*entry2str)(K&,V&)=0){
         cout << "Tree height: " << this->height() << endl;
         cout << "Tree nodes:"  << endl;

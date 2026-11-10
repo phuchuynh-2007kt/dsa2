@@ -55,6 +55,10 @@ public:
     void add(K key, V value=0);
     V remove(K key, bool* success=0);
     V search(K key, bool& found); //return NULL if not found
+    V search(K key, bool& found) const { //adaptive search
+        found = false;
+        return search(this->pRoot, key, found);
+    } 
     int size();
     int height();
     void clear();
@@ -83,6 +87,20 @@ protected:
     Node* add(Node* pRoot, Entry data);
     Node* remove(Node* pRoot, K key, bool& success, V& retValue);
     V search(Node* pRoot, K key, bool& found);
+    V search(Node* pRoot, K key, bool &found) const { //adaptive search
+        if (pRoot == nullptr) {
+            found = false;
+            return nullptr;
+        }
+        if (pRoot->data.key < key) {
+            return search(pRoot->pRight, key, found);
+        } else if (pRoot->data.key > key) {
+            return search(pRoot->pLeft, key, found);
+        } else {
+            found = true;
+            return pRoot->data.value;
+        }
+    }
     int height(Node* pRoot);
     void ascendingList(Node* pRoot, DLinkedList<V>& list);
     void descendingList(Node* pRoot, DLinkedList<V>& list);
@@ -378,6 +396,10 @@ typename BST<K, V>::Node* BST<K, V>::remove(
         pRoot->pRight = remove(pRoot->pRight, newNode->data.key, ignoredSucess, ignoredValue);
         success = true;
     }
+
+    if(pRoot != nullptr) 
+        pRoot->updateHeight();
+        
     return pRoot;    
 }
 
