@@ -196,8 +196,7 @@ Heap<T>::~Heap(){
 
 template<class T>
 void Heap<T>::push(T item){
-    // TODO Q2: ensure capacity, append, and restore the heap invariant.
-    (void)item;
+    ensureCapacity(capacity + 1);
 }
 
 
